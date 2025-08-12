@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>일회성 배달 앱</title>
+    <!-- Tailwind CSS 로딩 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f3f4f6; /* 회색 배경 */
+        }
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            background-color: #ffffff;
+            border-radius: 12px; /* 둥근 모서리 */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: none;
+        }
+        .btn-primary {
+            background-color: #4f46e5; /* 보라색 */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca; /* 진한 보라색 */
+        }
+        .btn-secondary {
+            background-color: #6b7280; /* 회색 */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563; /* 진한 회색 */
+        }
+        .btn-success {
+            background-color: #10b981; /* 초록색 */
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #059669; /* 진한 초록색 */
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            box-sizing: border-box; /* 패딩이 너비에 포함되도록 */
+        }
+        .card {
+            background-color: #f9fafb; /* 카드 배경색 */
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        /* 로딩 스피너 스타일 */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            z-index: 1000;
+            display: none;
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">일회성 배달 앱</h1>
+
+        <div class="flex justify-center mb-6 space-x-4">
+            <button id="showRequestFormBtn" class="btn btn-primary">배달 요청하기</button>
+            <button id="showDeliveryListBtn" class="btn btn-secondary">요청 목록 보기 (배달원)</button>
+        </div>
+
+        <!-- 배달 요청 폼 -->
+        <div id="requestForm" class="hidden">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">새로운 배달 요청</h2>
+            <div class="mb-4">
+                <label for="itemDescription" class="block text-gray-700 text-sm font-bold mb-2">무엇을 배달할까요?</label>
+                <input type="text" id="itemDescription" class="input-field" placeholder="예: 편의점 컵라면, 약국 감기약" required>
+            </div>
+            <div class="mb-4">
+                <label for="pickupLocation" class="block text-gray-700 text-sm font-bold mb-2">픽업 주소</label>
+                <input type="text" id="pickupLocation" class="input-field" placeholder="예: 서울시 강남구 역삼동 스타벅스" required>
+            </div>
+            <div class="mb-4">
+                <label for="deliveryLocation" class="block text-gray-700 text-sm font-bold mb-2">배달 주소</label>
+                <input type="text" id="deliveryLocation" class="input-field" placeholder="예: 서울시 강남구 테헤란로 123 아파트" required>
+            </div>
+            <div class="mb-4">
+                <label for="contactInfo" class="block text-gray-700 text-sm font-bold mb-2">연락처 (선택 사항)</label>
+                <input type="text" id="contactInfo" class="input-field" placeholder="예: 010-1234-5678">
+            </div>
+            <button id="submitRequestBtn" class="btn btn-primary w-full">요청 제출하기</button>
+        </div>
+
+        <!-- 요청 목록 (배달원용) -->
+        <div id="deliveryList" class="hidden">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">현재 배달 요청 목록</h2>
+            <div id="requestsContainer" class="space-y-4">
+                <!-- 요청이 여기에 동적으로 추가됩니다 -->
+                <p id="noRequestsMessage" class="text-gray-500 text-center">현재 배달 요청이 없습니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메시지 박스 -->
+    <div id="messageBox" class="message-box"></div>
+    <div id="loadingSpinner" class="hidden flex justify-center items-center fixed inset-0 bg-gray-700 bg-opacity-75 z-50">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // 요청 데이터를 저장할 배열 (일회성 앱이므로 페이지 새로고침 시 초기화)
+        let deliveryRequests = [];
+
+        // DOM 요소 가져오기
+        const requestForm = document.getElementById('requestForm');
+        const deliveryList = document.getElementById('deliveryList');
+        const showRequestFormBtn = document.getElementById('showRequestFormBtn');
+        const showDeliveryListBtn = document.getElementById('showDeliveryListBtn');
+        const submitRequestBtn = document.getElementById('submitRequestBtn');
+        const requestsContainer = document.getElementById('requestsContainer');
+        const noRequestsMessage = document.getElementById('noRequestsMessage');
+        const messageBox = document.getElementById('messageBox');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+
+        // 메시지 박스 표시 함수
+        function showMessage(message, duration = 2000) {
+            messageBox.textContent = message;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, duration);
+        }
+
+        // 로딩 스피너 표시/숨김 함수
+        function toggleLoadingSpinner(show) {
+            loadingSpinner.classList.toggle('hidden', !show);
+        }
+
+        // 페이지 뷰 변경 함수
+        function showView(viewId) {
+            requestForm.classList.add('hidden');
+            deliveryList.classList.add('hidden');
+            showRequestFormBtn.classList.remove('btn-primary');
+            showRequestFormBtn.classList.add('btn-secondary');
+            showDeliveryListBtn.classList.remove('btn-primary');
+            showDeliveryListBtn.classList.add('btn-secondary');
+
+            if (viewId === 'requestForm') {
+                requestForm.classList.remove('hidden');
+                showRequestFormBtn.classList.remove('btn-secondary');
+                showRequestFormBtn.classList.add('btn-primary');
+            } else if (viewId === 'deliveryList') {
+                deliveryList.classList.remove('hidden');
+                showDeliveryListBtn.classList.remove('btn-secondary');
+                showDeliveryListBtn.classList.add('btn-primary');
+                renderRequests(); // 요청 목록을 다시 그림
+            }
+        }
+
+        // 초기 뷰 설정
+        showView('requestForm');
+
+        // 이벤트 리스너
+        showRequestFormBtn.addEventListener('click', () => showView('requestForm'));
+        showDeliveryListBtn.addEventListener('click', () => showView('deliveryList'));
+
+        // 요청 제출 버튼 클릭 이벤트
+        submitRequestBtn.addEventListener('click', () => {
+            const itemDescription = document.getElementById('itemDescription').value;
+            const pickupLocation = document.getElementById('pickupLocation').value;
+            const deliveryLocation = document.getElementById('deliveryLocation').value;
+            const contactInfo = document.getElementById('contactInfo').value;
+
+            if (!itemDescription || !pickupLocation || !deliveryLocation) {
+                showMessage("모든 필수 정보를 입력해주세요.");
+                return;
+            }
+
+            toggleLoadingSpinner(true); // 로딩 스피너 표시
+
+            // 요청 시뮬레이션 (비동기 작업처럼 보이도록 setTimeout 사용)
+            setTimeout(() => {
+                const newRequest = {
+                    id: Date.now(), // 고유 ID
+                    itemDescription,
+                    pickupLocation,
+                    deliveryLocation,
+                    contactInfo: contactInfo || '정보 없음',
+                    status: '대기 중' // 초기 상태
+                };
+                deliveryRequests.push(newRequest);
+
+                // 입력 필드 초기화
+                document.getElementById('itemDescription').value = '';
+                document.getElementById('pickupLocation').value = '';
+                document.getElementById('deliveryLocation').value = '';
+                document.getElementById('contactInfo').value = '';
+
+                toggleLoadingSpinner(false); // 로딩 스피너 숨김
+                showMessage("배달 요청이 성공적으로 제출되었습니다!");
+                showView('deliveryList'); // 요청 목록으로 자동 전환
+            }, 1000); // 1초 지연
+        });
+
+        // 요청 목록 렌더링 함수
+        function renderRequests() {
+            requestsContainer.innerHTML = ''; // 기존 목록 초기화
+
+            if (deliveryRequests.length === 0) {
+                noRequestsMessage.classList.remove('hidden');
+                requestsContainer.appendChild(noRequestsMessage);
+                return;
+            } else {
+                noRequestsMessage.classList.add('hidden');
+            }
+
+            deliveryRequests.forEach(request => {
+                const requestCard = document.createElement('div');
+                requestCard.className = 'card';
+                requestCard.innerHTML = `
+                    <p class="font-bold text-gray-800 text-lg mb-2">${request.itemDescription}</p>
+                    <p class="text-gray-600 mb-1"><strong>픽업:</strong> ${request.pickupLocation}</p>
+                    <p class="text-gray-600 mb-1"><strong>배달:</strong> ${request.deliveryLocation}</p>
+                    <p class="text-gray-600 mb-2"><strong>연락처:</strong> ${request.contactInfo}</p>
+                    <p class="text-gray-700 font-semibold mb-3">상태: <span class="${request.status === '대기 중' ? 'text-yellow-600' : 'text-green-600'}">${request.status}</span></p>
+                    <button class="btn ${request.status === '대기 중' ? 'btn-success' : 'btn-secondary opacity-50 cursor-not-allowed'}" data-id="${request.id}" ${request.status !== '대기 중' ? 'disabled' : ''}>
+                        ${request.status === '대기 중' ? '배달 수락하기' : '수락 완료'}
+                    </button>
+                `;
+                requestsContainer.appendChild(requestCard);
+            });
+
+            // 배달 수락 버튼 이벤트 리스너 추가
+            requestsContainer.querySelectorAll('.btn-success').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const requestId = parseInt(event.target.dataset.id);
+                    acceptDelivery(requestId);
+                });
+            });
+        }
+
+        // 배달 수락 함수
+        function acceptDelivery(id) {
+            toggleLoadingSpinner(true); // 로딩 스피너 표시
+            setTimeout(() => {
+                const requestIndex = deliveryRequests.findIndex(req => req.id === id);
+                if (requestIndex !== -1) {
+                    deliveryRequests[requestIndex].status = '배달 중';
+                    showMessage(`요청 "${deliveryRequests[requestIndex].itemDescription}"이(가) 수락되었습니다!`);
+                }
+                toggleLoadingSpinner(false); // 로딩 스피너 숨김
+                renderRequests(); // 목록 다시 렌더링
+            }, 500); // 0.5초 지연
+        }
+
+        // 페이지 로드 시 첫 렌더링
+        window.onload = function() {
+            showView('requestForm'); // 초기 화면을 요청 폼으로 설정
+        };
+
+    </script>
+</body>
+</html>
